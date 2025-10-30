@@ -59,7 +59,7 @@ class Config:
         self.oauth_token_endpoint = os.getenv('OAUTH_TOKEN_ENDPOINT')
         self.oauth_client_id = os.getenv('OAUTH_CLIENT_ID')
         self.oauth_client_secret = os.getenv('OAUTH_CLIENT_SECRET')
-        self.oauth_scope = os.getenv('OAUTH_SCOPE')
+        self.oauth_scope = os.getenv('OAUTH_SCOPE') or None  # Treat empty string as None
         self.oauth_refresh_buffer_minutes = int(os.getenv('OAUTH_REFRESH_BUFFER_MINUTES', '5'))
         self.proxy_url = os.getenv('PROXY_URL')
         self.proxy_username = os.getenv('PROXY_USERNAME')
