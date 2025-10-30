@@ -95,6 +95,10 @@ class BrowserProxyService:
                 if not encoding or encoding.lower() == 'ascii':
                     encoding = 'utf-8'
 
+                # Log detected encoding (print for visibility since standard logging may not show)
+                print(f"[PROXY] URL: {url}")
+                print(f"[PROXY] Content-Type: {content_type}")
+                print(f"[PROXY] Detected encoding: {encoding}")
                 logger.info(f"Detected encoding: {encoding} for {url}")
 
                 # Decode with detected encoding
