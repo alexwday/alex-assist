@@ -57,7 +57,10 @@ class Config:
             self.default_model = os.getenv('DEFAULT_MODEL', 'gpt-4o-mini')
 
             if not self.openai_api_key:
-                raise ValueError("OPENAI_API_KEY is required for local environment")
+                raise ValueError(
+                    "OPENAI_API_KEY is required for local environment. "
+                    "If you're in RBC environment, make sure ENV=rbc is set in your .env file."
+                )
         else:
             # RBC environment: Use OAuth2 + custom endpoint
             self.llm_provider = 'rbc'
