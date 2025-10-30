@@ -53,12 +53,26 @@ async def test_proxy(url: str):
     print(f"🌐 Testing URL: {url}")
     print()
 
+    # Setup RBC security (SSL certificates)
+    if config.is_rbc:
+        try:
+            import rbc_security
+            logger.info("Configuring rbc_security SSL certificates...")
+            rbc_security.enable_certs()
+            logger.info("✓ rbc_security configured successfully")
+        except ImportError:
+            logger.warning("⚠️  rbc_security not available - install with: pip install rbc_security")
+            logger.warning("⚠️  Continuing without SSL certificates (may fail in RBC environment)")
+        except Exception as e:
+            logger.error(f"Failed to setup rbc_security: {e}")
+
     # Setup client
     client_kwargs = {
         "timeout": 30.0,
         "follow_redirects": True,
     }
 
+    # Add proxy configuration (for RBC environment)
     if config.get_proxy_dict():
         client_kwargs["proxies"] = config.get_proxy_dict()
         logger.info("Using corporate proxy")

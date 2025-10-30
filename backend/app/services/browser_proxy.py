@@ -29,6 +29,18 @@ class BrowserProxyService:
             "Upgrade-Insecure-Requests": "1",
         }
 
+        # Setup RBC security (SSL certificates) if in RBC environment
+        if config.is_rbc:
+            try:
+                import rbc_security
+                logger.info("Configuring rbc_security SSL certificates for browser proxy...")
+                rbc_security.enable_certs()
+                logger.info("✓ rbc_security configured for browser proxy")
+            except ImportError:
+                logger.warning("⚠️  rbc_security not available - SSL may fail in RBC environment")
+            except Exception as e:
+                logger.error(f"Failed to setup rbc_security for browser proxy: {e}")
+
         # Get proxy configuration from config (for RBC environment)
         self.proxy_config = config.get_proxy_dict()
 
