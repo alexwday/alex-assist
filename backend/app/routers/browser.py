@@ -9,9 +9,7 @@ from typing import Optional, List
 from app.services.browser_proxy import browser_proxy_service
 from app.services.web_scraper import web_scraper_service
 from app.services.search_service import search_service
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 router = APIRouter(prefix="/api/browser", tags=["browser"])
 

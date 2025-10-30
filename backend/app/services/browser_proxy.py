@@ -6,10 +6,8 @@ import httpx
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from typing import Optional
-import logging
+from loguru import logger
 from app.config import config
-
-logger = logging.getLogger(__name__)
 
 class BrowserProxyService:
     """
