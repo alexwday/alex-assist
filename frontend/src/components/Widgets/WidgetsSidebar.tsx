@@ -3,17 +3,50 @@
  */
 
 import React from 'react';
-import { PanelLeftClose, PanelLeftOpen, Blocks, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Blocks, X, Globe, MessageSquare } from 'lucide-react';
+import type { WidgetType } from '../../types/widget';
 
 interface WidgetsSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  onAddWidget: (type: WidgetType) => void;
 }
+
+interface AvailableWidget {
+  type: WidgetType;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
+const AVAILABLE_WIDGETS: AvailableWidget[] = [
+  {
+    type: 'chat',
+    name: 'AI Chat',
+    description: 'Chat with Claude AI assistant',
+    icon: <MessageSquare size={24} />,
+    color: 'bg-blue-500',
+  },
+  {
+    type: 'browser',
+    name: 'Browser',
+    description: 'Browse the web and send pages to AI',
+    icon: <Globe size={24} />,
+    color: 'bg-green-500',
+  },
+];
 
 export const WidgetsSidebar: React.FC<WidgetsSidebarProps> = ({
   isOpen,
   onToggle,
+  onAddWidget,
 }) => {
+  const handleAddWidget = (type: WidgetType) => {
+    onAddWidget(type);
+    onToggle(); // Close sidebar after adding
+  };
+
   return (
     <>
       {/* Toggle button - only visible when sidebar is closed */}
@@ -43,7 +76,7 @@ export const WidgetsSidebar: React.FC<WidgetsSidebarProps> = ({
                   Widgets
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Drag widgets to your dashboard
+                  Click to add widgets to your dashboard
                 </p>
               </div>
               <button
@@ -56,13 +89,29 @@ export const WidgetsSidebar: React.FC<WidgetsSidebarProps> = ({
             </div>
           </div>
 
-          {/* Widget list - placeholder for now */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <Blocks size={48} className="mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No widgets available yet</p>
-              <p className="text-xs mt-1">Coming soon...</p>
-            </div>
+          {/* Widget list */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {AVAILABLE_WIDGETS.map((widget) => (
+              <button
+                key={widget.type}
+                onClick={() => handleAddWidget(widget.type)}
+                className="w-full p-4 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 bg-gray-50 dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all cursor-pointer text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg ${widget.color} text-white`}>
+                    {widget.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      {widget.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {widget.description}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>

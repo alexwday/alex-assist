@@ -9,12 +9,13 @@ import 'react-resizable/css/styles.css';
 
 import { GridOverlay } from './GridOverlay';
 import { ChatWidget } from '../Widgets/ChatWidget/ChatWidget';
+import { BrowserWidget } from '../Widgets/BrowserWidget/BrowserWidget';
 import { SessionSidebar } from '../Sessions/SessionSidebar';
 import { WidgetsSidebar } from '../Widgets/WidgetsSidebar';
 import { useLayout } from '../../hooks/useLayout';
 import { useSession } from '../../hooks/useSession';
 import { exportSessionToJSON } from '../../lib/storage';
-import type { Widget } from '../../types/widget';
+import type { Widget, WidgetType } from '../../types/widget';
 
 const GRID_COLS = 12;
 const MARGIN = 10;
@@ -22,7 +23,7 @@ const CONTAINER_PADDING = 10;
 const LEFT_RESERVED_SPACE = 100; // Space for session button
 
 export const Dashboard = () => {
-  const { widgets, updateWidgetLayout, captureSnapshot, restoreSnapshot, resetLayout } = useLayout();
+  const { widgets, updateWidgetLayout, addWidget, captureSnapshot, restoreSnapshot, resetLayout } = useLayout();
   const {
     sessions,
     currentSessionId,
@@ -248,10 +249,24 @@ export const Dashboard = () => {
     }
   };
 
+  // Handle adding new widgets
+  const handleAddWidget = useCallback((type: WidgetType) => {
+    const widgetId = `${type}-${Date.now()}`;
+    const newWidget: Widget = {
+      id: widgetId,
+      type,
+      title: type === 'chat' ? 'AI Assistant' : type === 'browser' ? 'Browser' : 'Widget',
+      layout: { x: 0, y: 0, w: 6, h: 8 }, // Default size and position
+    };
+    addWidget(newWidget);
+  }, [addWidget]);
+
   const renderWidget = (widget: Widget) => {
     switch (widget.type) {
       case 'chat':
         return <ChatWidget widgetId={widget.id} title={widget.title} />;
+      case 'browser':
+        return <BrowserWidget widgetId={widget.id} title={widget.title} />;
       default:
         return <div>Unknown widget type</div>;
     }
@@ -281,6 +296,7 @@ export const Dashboard = () => {
           setIsWidgetsSidebarOpen(!isWidgetsSidebarOpen);
           if (!isWidgetsSidebarOpen) setIsSidebarOpen(false); // Close sessions sidebar when opening widgets
         }}
+        onAddWidget={handleAddWidget}
       />
 
       {/* Grid container with left offset */}

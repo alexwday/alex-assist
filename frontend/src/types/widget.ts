@@ -24,3 +24,17 @@ export interface WidgetConfig {
   maxW?: number;
   maxH?: number;
 }
+
+// Browser widget specific state
+export interface BrowserState {
+  currentUrl: string;
+  history: string[];
+  historyIndex: number;
+  isLoading: boolean;
+  pageTitle: string;
+}
+
+export interface BrowserWidget extends Widget {
+  type: 'browser';
+  browserState?: BrowserState;
+}
