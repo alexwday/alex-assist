@@ -44,12 +44,11 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
             raise HTTPException(status_code=400, detail=error)
 
         # CRITICAL: Only send these specific headers - NO encoding headers
-        # We must be explicit to prevent FastAPI from adding any compression headers
+        # Do NOT send Content-Encoding header - its absence indicates no compression
+        # Note: "identity" is NOT a valid Content-Encoding value
         response_headers = {
             "Content-Type": "text/html; charset=utf-8",
             "Cache-Control": "public, max-age=3600",
-            # Explicitly tell the browser NOT to decompress
-            "Content-Encoding": "identity",  # No encoding/compression
         }
 
         logger.debug(f"[PROXY] Response headers being sent: {response_headers}")
