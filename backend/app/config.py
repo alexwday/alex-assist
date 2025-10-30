@@ -15,9 +15,16 @@ class Config:
 
     def __init__(self):
         # Environment mode: 'local' or 'rbc'
-        self.env: Literal['local', 'rbc'] = os.getenv('ENV', 'local').lower()
+        raw_env = os.getenv('ENV', 'local')
+        self.env: Literal['local', 'rbc'] = raw_env.lower().strip()
         self.is_local = self.env == 'local'
         self.is_rbc = self.env == 'rbc'
+
+        # Debug logging for environment detection
+        import sys
+        print(f"[Config] Raw ENV value: '{raw_env}'", file=sys.stderr)
+        print(f"[Config] Processed ENV: '{self.env}'", file=sys.stderr)
+        print(f"[Config] is_local: {self.is_local}, is_rbc: {self.is_rbc}", file=sys.stderr)
 
         # Server settings
         self.host = os.getenv('HOST', '0.0.0.0')
