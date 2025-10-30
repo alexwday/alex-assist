@@ -107,16 +107,24 @@ class Config:
         if not self.is_rbc or not self.proxy_url:
             return None
 
+        # Ensure proxy_url has a scheme
+        proxy_base = self.proxy_url
+        if not proxy_base.startswith('http://') and not proxy_base.startswith('https://'):
+            proxy_base = f'http://{proxy_base}'
+
         if self.proxy_username and self.proxy_password:
-            proxy_with_auth = f'http://{self.proxy_username}:{self.proxy_password}@{self.proxy_url}'
+            # Parse the URL to insert auth credentials
+            from urllib.parse import urlparse
+            parsed = urlparse(proxy_base)
+            proxy_with_auth = f'{parsed.scheme}://{self.proxy_username}:{self.proxy_password}@{parsed.netloc}'
             return {
-                'http': proxy_with_auth,
-                'https': proxy_with_auth
+                'http://': proxy_with_auth,
+                'https://': proxy_with_auth
             }
 
         return {
-            'http': f'http://{self.proxy_url}',
-            'https': f'http://{self.proxy_url}'
+            'http://': proxy_base,
+            'https://': proxy_base
         }
 
     def __repr__(self) -> str:

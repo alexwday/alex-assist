@@ -69,6 +69,12 @@ class BrowserProxyService:
                 if "text/html" not in content_type:
                     return None, f"Non-HTML content type: {content_type}", None
 
+                # Ensure proper encoding detection
+                # httpx handles decompression automatically, but we need to set encoding
+                if response.encoding == 'ascii':
+                    # Fallback to utf-8 if httpx detected ascii (often wrong)
+                    response.encoding = 'utf-8'
+
                 html_content = response.text
 
                 # Rewrite URLs in the HTML to route through proxy
