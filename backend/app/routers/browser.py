@@ -160,3 +160,47 @@ async def search_news(request: SearchRequest):
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "service": "browser"}
+
+# Debug endpoint to test encoding
+@router.get("/debug/encoding")
+async def debug_encoding(url: str = Query(..., description="URL to test encoding")):
+    """Debug endpoint to see what encoding is detected for a URL"""
+    import httpx
+    from app.config import config
+
+    try:
+        client_kwargs = {"timeout": 10.0, "follow_redirects": True}
+        proxy_config = config.get_proxy_dict()
+        if proxy_config:
+            client_kwargs["proxies"] = proxy_config
+
+        async with httpx.AsyncClient(**client_kwargs) as client:
+            response = await client.get(url)
+
+            content_type = response.headers.get("Content-Type", "")
+
+            # Try to detect encoding
+            encoding = None
+            if 'charset=' in content_type.lower():
+                encoding = content_type.lower().split('charset=')[-1].split(';')[0].strip()
+
+            if not encoding:
+                import re
+                head_bytes = response.content[:1024]
+                charset_match = re.search(rb'charset=["\']?([^"\'>\s]+)', head_bytes, re.IGNORECASE)
+                if charset_match:
+                    encoding = charset_match.group(1).decode('ascii')
+
+            if not encoding:
+                encoding = 'utf-8 (default)'
+
+            return {
+                "url": url,
+                "content_type": content_type,
+                "detected_encoding": encoding,
+                "httpx_encoding": response.encoding,
+                "content_length": len(response.content),
+                "first_100_chars": response.content[:100].hex()
+            }
+    except Exception as e:
+        return {"error": str(e)}
