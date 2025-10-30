@@ -34,12 +34,26 @@ class Config:
         self.upload_dir = os.getenv('UPLOAD_DIR', './uploads')
         self.max_upload_size_mb = int(os.getenv('MAX_UPLOAD_SIZE_MB', '10'))
 
-        # LLM Configuration
+        # LLM Configuration - set all attributes first with defaults
+        # Local environment attributes
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        self.openai_base_url = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+
+        # RBC environment attributes
+        self.rbc_llm_endpoint = os.getenv('RBC_LLM_ENDPOINT')
+        self.oauth_token_endpoint = os.getenv('OAUTH_TOKEN_ENDPOINT')
+        self.oauth_client_id = os.getenv('OAUTH_CLIENT_ID')
+        self.oauth_client_secret = os.getenv('OAUTH_CLIENT_SECRET')
+        self.oauth_scope = os.getenv('OAUTH_SCOPE')
+        self.oauth_refresh_buffer_minutes = int(os.getenv('OAUTH_REFRESH_BUFFER_MINUTES', '5'))
+        self.proxy_url = os.getenv('PROXY_URL')
+        self.proxy_username = os.getenv('PROXY_USERNAME')
+        self.proxy_password = os.getenv('PROXY_PASSWORD')
+
+        # Environment-specific validation and settings
         if self.is_local:
             # Local development: Use OpenAI directly
             self.llm_provider = 'openai'
-            self.openai_api_key = os.getenv('OPENAI_API_KEY')
-            self.openai_base_url = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
             self.default_model = os.getenv('DEFAULT_MODEL', 'gpt-4o-mini')
 
             if not self.openai_api_key:
@@ -47,20 +61,7 @@ class Config:
         else:
             # RBC environment: Use OAuth2 + custom endpoint
             self.llm_provider = 'rbc'
-            self.rbc_llm_endpoint = os.getenv('RBC_LLM_ENDPOINT')
             self.default_model = os.getenv('DEFAULT_MODEL', 'gpt-4o')
-
-            # OAuth2 configuration
-            self.oauth_token_endpoint = os.getenv('OAUTH_TOKEN_ENDPOINT')
-            self.oauth_client_id = os.getenv('OAUTH_CLIENT_ID')
-            self.oauth_client_secret = os.getenv('OAUTH_CLIENT_SECRET')
-            self.oauth_scope = os.getenv('OAUTH_SCOPE')
-            self.oauth_refresh_buffer_minutes = int(os.getenv('OAUTH_REFRESH_BUFFER_MINUTES', '5'))
-
-            # Proxy configuration (for web search in RBC environment)
-            self.proxy_url = os.getenv('PROXY_URL')
-            self.proxy_username = os.getenv('PROXY_USERNAME')
-            self.proxy_password = os.getenv('PROXY_PASSWORD')
 
             if not all([self.rbc_llm_endpoint, self.oauth_token_endpoint,
                        self.oauth_client_id, self.oauth_client_secret]):
