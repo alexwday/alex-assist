@@ -71,23 +71,32 @@ class BrowserProxyService:
 
                 # Better encoding detection with multiple fallbacks
                 import re
-                import chardet
+                import sys
+
+                # Try to import chardet, but don't fail if not available
+                try:
+                    import chardet
+                    has_chardet = True
+                except ImportError:
+                    has_chardet = False
+                    print("WARNING: chardet not installed, encoding detection may be less accurate", file=sys.stderr)
 
                 # Check if response is actually compressed (shouldn't happen as httpx decompresses)
                 is_compressed = response.content[:2] == b'\x1f\x8b'  # gzip magic bytes
 
-                print(f"[PROXY] URL: {url}")
-                print(f"[PROXY] Content-Type: {content_type}")
-                print(f"[PROXY] Content length: {len(response.content)} bytes")
-                print(f"[PROXY] Is compressed (gzip): {is_compressed}")
-                print(f"[PROXY] First 50 bytes (hex): {response.content[:50].hex()}")
+                print("=" * 80, file=sys.stderr)
+                print(f"[PROXY DEBUG] URL: {url}", file=sys.stderr)
+                print(f"[PROXY DEBUG] Content-Type: {content_type}", file=sys.stderr)
+                print(f"[PROXY DEBUG] Content length: {len(response.content)} bytes", file=sys.stderr)
+                print(f"[PROXY DEBUG] Is compressed (gzip): {is_compressed}", file=sys.stderr)
+                print(f"[PROXY DEBUG] First 50 bytes (hex): {response.content[:50].hex()}", file=sys.stderr)
 
                 # 1. Try to get charset from Content-Type header
                 encoding = None
                 if 'charset=' in content_type.lower():
                     try:
                         encoding = content_type.lower().split('charset=')[-1].split(';')[0].strip()
-                        print(f"[PROXY] Encoding from Content-Type: {encoding}")
+                        print(f"[PROXY DEBUG] Encoding from Content-Type: {encoding}", file=sys.stderr)
                     except:
                         pass
 
@@ -101,34 +110,36 @@ class BrowserProxyService:
                         charset_match = re.search(r'charset=["\']?([^"\'>\s]+)', head_str, re.IGNORECASE)
                         if charset_match:
                             meta_encoding = charset_match.group(1).lower()
-                            print(f"[PROXY] Encoding from HTML meta: {meta_encoding}")
+                            print(f"[PROXY DEBUG] Encoding from HTML meta: {meta_encoding}", file=sys.stderr)
                             if meta_encoding == 'utf-8':
                                 encoding = 'utf-8'
                     except:
                         pass
 
                 # 3. Use chardet to detect encoding if we don't trust the header
-                if not encoding or encoding.lower() in ['iso-8859-1', 'ascii']:
+                if has_chardet and (not encoding or encoding.lower() in ['iso-8859-1', 'ascii']):
                     try:
                         detected = chardet.detect(response.content[:10000])
                         if detected and detected.get('confidence', 0) > 0.7:
                             encoding = detected['encoding']
-                            print(f"[PROXY] Encoding from chardet: {encoding} (confidence: {detected.get('confidence')})")
+                            print(f"[PROXY DEBUG] Encoding from chardet: {encoding} (confidence: {detected.get('confidence')})", file=sys.stderr)
                     except Exception as e:
-                        print(f"[PROXY] chardet detection failed: {e}")
+                        print(f"[PROXY DEBUG] chardet detection failed: {e}", file=sys.stderr)
 
                 # 4. Fallback to utf-8 if nothing detected or low confidence
                 if not encoding:
                     encoding = 'utf-8'
 
-                print(f"[PROXY] Final encoding to use: {encoding}")
+                print(f"[PROXY DEBUG] Final encoding to use: {encoding}", file=sys.stderr)
+                print("=" * 80, file=sys.stderr)
                 logger.info(f"Detected encoding: {encoding} for {url}")
 
                 # Decode with detected encoding
                 try:
                     html_content = response.content.decode(encoding, errors='replace')
+                    print(f"[PROXY DEBUG] Successfully decoded with {encoding}", file=sys.stderr)
                 except Exception as e:
-                    print(f"[PROXY] Decode with {encoding} failed: {e}, trying UTF-8")
+                    print(f"[PROXY DEBUG] Decode with {encoding} failed: {e}, trying UTF-8", file=sys.stderr)
                     # Last resort: force utf-8 with error replacement
                     html_content = response.content.decode('utf-8', errors='replace')
 
