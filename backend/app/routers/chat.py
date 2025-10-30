@@ -87,6 +87,14 @@ async def chat_completions(request: ChatRequest):
             # Non-streaming response
             response = await client.chat.completions.create(**params)
 
+            # Validate response has choices
+            if not response.choices or len(response.choices) == 0:
+                logger.error(f"LLM returned empty choices array: {response}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="LLM returned no response choices. Check your RBC LLM endpoint configuration."
+                )
+
             return ChatResponse(
                 message=Message(
                     role="assistant",
@@ -116,6 +124,11 @@ async def stream_chat_response(client, params):
         stream = await client.chat.completions.create(**params)
 
         async for chunk in stream:
+            # Validate chunk has choices
+            if not chunk.choices or len(chunk.choices) == 0:
+                logger.warning(f"Received chunk with no choices: {chunk}")
+                continue
+
             if chunk.choices[0].delta.content is not None:
                 content = chunk.choices[0].delta.content
 

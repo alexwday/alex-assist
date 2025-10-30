@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from typing import Optional
 import logging
+from app.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ class BrowserProxyService:
             "Upgrade-Insecure-Requests": "1",
         }
 
+        # Get proxy configuration from config (for RBC environment)
+        self.proxy_config = config.get_proxy_dict()
+
     async def fetch_page(self, url: str) -> tuple[Optional[str], Optional[str], Optional[dict]]:
         """
         Fetch a web page and return its content, rewritten for iframe display
@@ -47,8 +51,16 @@ class BrowserProxyService:
             if self._is_internal_url(url):
                 return None, "Access to internal URLs is not allowed", None
 
-            # Fetch the page
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+            # Fetch the page with proxy support (for RBC environment)
+            client_kwargs = {
+                "timeout": self.timeout,
+                "follow_redirects": True,
+            }
+            if self.proxy_config:
+                client_kwargs["proxies"] = self.proxy_config
+                logger.info(f"Using proxy configuration for request to {url}")
+
+            async with httpx.AsyncClient(**client_kwargs) as client:
                 response = await client.get(url, headers=self.headers)
                 response.raise_for_status()
 
