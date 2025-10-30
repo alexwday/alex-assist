@@ -14,7 +14,7 @@ httpx==0.25.2
 python-dotenv==1.0.0
 
 # Database
-sqlalchemy==2.0.23
+sqlalchemy>=2.0.35  # Updated for better wheel compatibility
 aiosqlite>=0.20.0
 
 # CORS
