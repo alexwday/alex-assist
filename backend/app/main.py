@@ -9,7 +9,7 @@ from loguru import logger
 import sys
 
 from app.config import config
-from app.routers import chat
+from app.routers import chat, browser
 
 
 # Configure logger
@@ -43,6 +43,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat.router)
+app.include_router(browser.router)
 
 
 @app.on_event("startup")

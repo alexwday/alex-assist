@@ -1,6 +1,6 @@
 # FastAPI and server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
 python-multipart==0.0.6
 
 # OpenAI client
@@ -8,6 +8,7 @@ openai>=1.50.0
 
 # HTTP requests
 requests==2.31.0
+httpx==0.25.2
 
 # Environment variables
 python-dotenv==1.0.0
@@ -21,6 +22,12 @@ fastapi-cors==0.0.6
 
 # Logging
 loguru==0.7.2
+
+# Web scraping and search
+crawl4ai==0.3.74
+duckduckgo-search==4.1.1
+beautifulsoup4==4.12.2
+lxml==5.1.0
 
 # Optional: RBC Security (only available in RBC environment)
 # rbc_security  # Uncomment when deploying to RBC environment
