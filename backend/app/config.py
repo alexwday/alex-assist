@@ -5,9 +5,17 @@ Handles environment switching between LOCAL and RBC deployment modes.
 
 import os
 from typing import Literal
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env file with override=True to prioritize .env over system variables
+# Find .env in the backend directory (parent of app/)
+env_path = Path(__file__).parent.parent / '.env'
+import sys
+print(f"[Config] Loading .env from: {env_path}", file=sys.stderr)
+print(f"[Config] .env file exists: {env_path.exists()}", file=sys.stderr)
+load_dotenv(dotenv_path=env_path, override=True)
+print(f"[Config] After load_dotenv, ENV from os.getenv: {os.getenv('ENV', 'NOT SET')}", file=sys.stderr)
 
 
 class Config:
