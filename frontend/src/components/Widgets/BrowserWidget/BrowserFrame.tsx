@@ -24,6 +24,7 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Construct proxy URL
   const proxyUrl = url ? `${API_BASE_URL}/api/browser/proxy?url=${encodeURIComponent(url)}` : '';
@@ -32,15 +33,37 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
     if (url) {
       setError(null);
       onLoadStart();
+
+      // Set a timeout to stop loading spinner if iframe never fires onLoad
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      loadingTimeoutRef.current = setTimeout(() => {
+        onLoadEnd();
+      }, 10000); // 10 second timeout
     }
-  }, [url, onLoadStart]);
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [url, onLoadStart, onLoadEnd]);
 
   const handleLoad = () => {
+    // Clear the timeout since the page loaded successfully
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
     onLoadEnd();
     setError(null);
   };
 
   const handleError = () => {
+    // Clear the timeout since we've hit an error
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
     const errorMessage = 'Failed to load page';
     setError(errorMessage);
     onLoadEnd();

@@ -2,7 +2,7 @@
  * Browser widget component - a functional web browser within the dashboard
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { WidgetBase } from '../WidgetBase';
 import { BrowserControls } from './BrowserControls';
 import { BrowserFrame } from './BrowserFrame';
@@ -12,12 +12,14 @@ interface BrowserWidgetProps {
   widgetId: string;
   title: string;
   initialUrl?: string;
+  onClose?: () => void;
 }
 
 export const BrowserWidget: React.FC<BrowserWidgetProps> = ({
   widgetId,
   title,
   initialUrl,
+  onClose,
 }) => {
   const {
     state,
@@ -31,6 +33,15 @@ export const BrowserWidget: React.FC<BrowserWidgetProps> = ({
     canGoBack,
     canGoForward,
   } = useBrowserState(initialUrl);
+
+  // Memoize loading callbacks to prevent infinite re-renders
+  const handleLoadStart = useCallback(() => {
+    setLoading(true);
+  }, [setLoading]);
+
+  const handleLoadEnd = useCallback(() => {
+    setLoading(false);
+  }, [setLoading]);
 
   const handleSendToAI = async () => {
     try {
@@ -67,7 +78,7 @@ export const BrowserWidget: React.FC<BrowserWidgetProps> = ({
   };
 
   return (
-    <WidgetBase widgetId={widgetId} title={state.pageTitle || title}>
+    <WidgetBase widgetId={widgetId} title={state.pageTitle || title} onClose={onClose}>
       <div className="flex flex-col h-full">
         <BrowserControls
           currentUrl={state.currentUrl}
@@ -85,8 +96,8 @@ export const BrowserWidget: React.FC<BrowserWidgetProps> = ({
           <BrowserFrame
             url={state.currentUrl}
             isLoading={state.isLoading}
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => setLoading(false)}
+            onLoadStart={handleLoadStart}
+            onLoadEnd={handleLoadEnd}
           />
         </div>
       </div>

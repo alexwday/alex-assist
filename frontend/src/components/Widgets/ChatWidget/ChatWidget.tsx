@@ -17,9 +17,10 @@ import type { ChatWidgetState } from '../../../types/session';
 interface ChatWidgetProps {
   widgetId: string;
   title?: string;
+  onClose?: () => void;
 }
 
-export const ChatWidget = ({ widgetId, title = 'AI Assistant' }: ChatWidgetProps) => {
+export const ChatWidget = ({ widgetId, title = 'AI Assistant', onClose }: ChatWidgetProps) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -91,7 +92,7 @@ export const ChatWidget = ({ widgetId, title = 'AI Assistant' }: ChatWidgetProps
   };
 
   return (
-    <WidgetBase id={widgetId} title={title}>
+    <WidgetBase id={widgetId} title={title} onClose={onClose}>
       <div className="flex flex-col h-full">
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">

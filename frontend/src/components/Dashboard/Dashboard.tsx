@@ -23,7 +23,7 @@ const CONTAINER_PADDING = 10;
 const LEFT_RESERVED_SPACE = 100; // Space for session button
 
 export const Dashboard = () => {
-  const { widgets, updateWidgetLayout, addWidget, captureSnapshot, restoreSnapshot, resetLayout } = useLayout();
+  const { widgets, updateWidgetLayout, addWidget, removeWidget, captureSnapshot, restoreSnapshot, resetLayout } = useLayout();
   const {
     sessions,
     currentSessionId,
@@ -262,11 +262,13 @@ export const Dashboard = () => {
   }, [addWidget]);
 
   const renderWidget = (widget: Widget) => {
+    const handleClose = () => removeWidget(widget.id);
+
     switch (widget.type) {
       case 'chat':
-        return <ChatWidget widgetId={widget.id} title={widget.title} />;
+        return <ChatWidget widgetId={widget.id} title={widget.title} onClose={handleClose} />;
       case 'browser':
-        return <BrowserWidget widgetId={widget.id} title={widget.title} />;
+        return <BrowserWidget widgetId={widget.id} title={widget.title} onClose={handleClose} />;
       default:
         return <div>Unknown widget type</div>;
     }

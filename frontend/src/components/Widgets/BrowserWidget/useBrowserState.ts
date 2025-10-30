@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import { BrowserState } from '../../../types/widget';
 
-const HOME_URL = 'https://google.ca';
+const HOME_URL = 'http://info.cern.ch';
 
 export const useBrowserState = (initialUrl: string = HOME_URL) => {
   const [state, setState] = useState<BrowserState>({
