@@ -124,9 +124,9 @@ async def stream_chat_response(client, params):
         stream = await client.chat.completions.create(**params)
 
         async for chunk in stream:
-            # Validate chunk has choices
+            # Validate chunk has choices (some metadata chunks are empty)
             if not chunk.choices or len(chunk.choices) == 0:
-                logger.warning(f"Received chunk with no choices: {chunk}")
+                logger.debug(f"Skipping chunk with no choices (metadata chunk)")
                 continue
 
             if chunk.choices[0].delta.content is not None:
