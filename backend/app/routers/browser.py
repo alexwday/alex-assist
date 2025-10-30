@@ -43,25 +43,24 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
         if error:
             raise HTTPException(status_code=400, detail=error)
 
-        # Merge safe headers from response with our explicit overrides
+        # CRITICAL: Only send these specific headers - NO encoding headers
+        # We must be explicit to prevent FastAPI from adding any compression headers
         response_headers = {
             "Content-Type": "text/html; charset=utf-8",
             "Cache-Control": "public, max-age=3600",
+            # Explicitly tell the browser NOT to decompress
+            "Content-Encoding": "identity",  # No encoding/compression
         }
 
-        # Add safe headers from the original response if available
-        if headers:
-            # Only include headers that won't conflict with our explicit ones
-            for key, value in headers.items():
-                if key.lower() not in {"content-type", "cache-control"}:
-                    response_headers[key] = value
+        logger.debug(f"[PROXY] Response headers being sent: {response_headers}")
+        logger.debug(f"[PROXY] Content length being sent: {len(html_content)} chars")
+        logger.debug(f"[PROXY] First 100 chars: {html_content[:100]}")
 
-        logger.debug(f"[PROXY] Response headers being sent: {list(response_headers.keys())}")
-
-        # Return HTML with safe headers
+        # Return HTML with explicit headers - use media_type to be extra sure
         return HTMLResponse(
             content=html_content,
-            headers=response_headers
+            headers=response_headers,
+            media_type="text/html; charset=utf-8"
         )
 
     except HTTPException:
