@@ -1,5 +1,49 @@
 # Installation Troubleshooting for RBC Environment
 
+## html2text Version Missing from RBC PyPI
+
+**Error:** `Could not find a version that satisfies the requirement html2text~=2024.2`
+
+**Cause:** crawl4ai 0.3.74 requires html2text version 2024.2.x, but your RBC PyPI mirror only has versions 2020.1.16 and 2025.4.15. The 2024.x versions are missing from your corporate package repository.
+
+### Solution 1: Use Public PyPI as Fallback (Recommended)
+Add public PyPI as an extra index URL to get missing packages:
+```bash
+cd /path/to/alex-assist/backend
+source venv/bin/activate
+bash install_with_public_pypi.sh
+```
+
+This tells pip to check the public PyPI if packages aren't found in your RBC mirror.
+
+### Solution 2: Try Latest crawl4ai Version
+Use a newer version of crawl4ai that might work with html2text 2025.4.15:
+```bash
+cd /path/to/alex-assist/backend
+source venv/bin/activate
+pip install -r requirements.latest-crawl4ai.txt
+```
+
+### Solution 3: Use Lightweight Scraping Without crawl4ai
+If crawl4ai continues to cause issues, use simpler scraping:
+```bash
+cd /path/to/alex-assist/backend
+source venv/bin/activate
+pip install -r requirements.no-crawl4ai.txt
+```
+
+Note: This requires modifying `web_scraper.py` to use Playwright instead of crawl4ai.
+
+### Check Your PyPI Configuration
+Run this to see which package indexes your pip is using:
+```bash
+cd /path/to/alex-assist/backend
+source venv/bin/activate
+bash check_pypi_config.sh
+```
+
+---
+
 ## Greenlet Compilation Error Solutions
 
 If you're getting "failed building wheel for greenlet" or "cstdlib file not found", try these solutions in order:
