@@ -71,7 +71,6 @@ class BrowserProxyService:
 
                 # Better encoding detection with multiple fallbacks
                 import re
-                import sys
 
                 # Try to import chardet, but don't fail if not available
                 try:
@@ -79,24 +78,24 @@ class BrowserProxyService:
                     has_chardet = True
                 except ImportError:
                     has_chardet = False
-                    print("WARNING: chardet not installed, encoding detection may be less accurate", file=sys.stderr)
+                    logger.warning("chardet not installed, encoding detection may be less accurate")
 
                 # Check if response is actually compressed (shouldn't happen as httpx decompresses)
                 is_compressed = response.content[:2] == b'\x1f\x8b'  # gzip magic bytes
 
-                print("=" * 80, file=sys.stderr)
-                print(f"[PROXY DEBUG] URL: {url}", file=sys.stderr)
-                print(f"[PROXY DEBUG] Content-Type: {content_type}", file=sys.stderr)
-                print(f"[PROXY DEBUG] Content length: {len(response.content)} bytes", file=sys.stderr)
-                print(f"[PROXY DEBUG] Is compressed (gzip): {is_compressed}", file=sys.stderr)
-                print(f"[PROXY DEBUG] First 50 bytes (hex): {response.content[:50].hex()}", file=sys.stderr)
+                logger.debug("=" * 80)
+                logger.debug(f"[PROXY DEBUG] URL: {url}")
+                logger.debug(f"[PROXY DEBUG] Content-Type: {content_type}")
+                logger.debug(f"[PROXY DEBUG] Content length: {len(response.content)} bytes")
+                logger.debug(f"[PROXY DEBUG] Is compressed (gzip): {is_compressed}")
+                logger.debug(f"[PROXY DEBUG] First 50 bytes (hex): {response.content[:50].hex()}")
 
                 # 1. Try to get charset from Content-Type header
                 encoding = None
                 if 'charset=' in content_type.lower():
                     try:
                         encoding = content_type.lower().split('charset=')[-1].split(';')[0].strip()
-                        print(f"[PROXY DEBUG] Encoding from Content-Type: {encoding}", file=sys.stderr)
+                        logger.debug(f"[PROXY DEBUG] Encoding from Content-Type: {encoding}")
                     except:
                         pass
 
@@ -110,7 +109,7 @@ class BrowserProxyService:
                         charset_match = re.search(r'charset=["\']?([^"\'>\s]+)', head_str, re.IGNORECASE)
                         if charset_match:
                             meta_encoding = charset_match.group(1).lower()
-                            print(f"[PROXY DEBUG] Encoding from HTML meta: {meta_encoding}", file=sys.stderr)
+                            logger.debug(f"[PROXY DEBUG] Encoding from HTML meta: {meta_encoding}")
                             if meta_encoding == 'utf-8':
                                 encoding = 'utf-8'
                     except:
@@ -122,24 +121,24 @@ class BrowserProxyService:
                         detected = chardet.detect(response.content[:10000])
                         if detected and detected.get('confidence', 0) > 0.7:
                             encoding = detected['encoding']
-                            print(f"[PROXY DEBUG] Encoding from chardet: {encoding} (confidence: {detected.get('confidence')})", file=sys.stderr)
+                            logger.debug(f"[PROXY DEBUG] Encoding from chardet: {encoding} (confidence: {detected.get('confidence')})")
                     except Exception as e:
-                        print(f"[PROXY DEBUG] chardet detection failed: {e}", file=sys.stderr)
+                        logger.debug(f"[PROXY DEBUG] chardet detection failed: {e}")
 
                 # 4. Fallback to utf-8 if nothing detected or low confidence
                 if not encoding:
                     encoding = 'utf-8'
 
-                print(f"[PROXY DEBUG] Final encoding to use: {encoding}", file=sys.stderr)
-                print("=" * 80, file=sys.stderr)
+                logger.debug(f"[PROXY DEBUG] Final encoding to use: {encoding}")
+                logger.debug("=" * 80)
                 logger.info(f"Detected encoding: {encoding} for {url}")
 
                 # Decode with detected encoding
                 try:
                     html_content = response.content.decode(encoding, errors='replace')
-                    print(f"[PROXY DEBUG] Successfully decoded with {encoding}", file=sys.stderr)
+                    logger.debug(f"[PROXY DEBUG] Successfully decoded with {encoding}")
                 except Exception as e:
-                    print(f"[PROXY DEBUG] Decode with {encoding} failed: {e}, trying UTF-8", file=sys.stderr)
+                    logger.debug(f"[PROXY DEBUG] Decode with {encoding} failed: {e}, trying UTF-8")
                     # Last resort: force utf-8 with error replacement
                     html_content = response.content.decode('utf-8', errors='replace')
 
@@ -208,7 +207,7 @@ class BrowserProxyService:
 
     def _get_safe_headers(self, original_headers: dict) -> dict:
         """
-        Strip security headers that prevent iframe embedding
+        Strip security headers that prevent iframe embedding and encoding headers that cause display issues
 
         Args:
             original_headers: The original response headers
@@ -216,18 +215,26 @@ class BrowserProxyService:
         Returns:
             Filtered headers safe for iframe display
         """
-        # Headers to remove for iframe compatibility
+        # Headers to remove for iframe compatibility and proper content display
         unsafe_headers = {
             'x-frame-options',
             'content-security-policy',
             'x-content-security-policy',
             'x-webkit-csp',
+            # Strip content-encoding headers as httpx has already decompressed the content
+            # If we leave these, the browser will try to decompress already-decompressed content
+            'content-encoding',
+            'transfer-encoding',
+            # Also strip content-length as it may be incorrect after our modifications
+            'content-length',
         }
 
         safe_headers = {}
         for key, value in original_headers.items():
             if key.lower() not in unsafe_headers:
                 safe_headers[key] = value
+
+        logger.debug(f"[PROXY DEBUG] Stripped headers: {[k for k in original_headers.keys() if k.lower() in unsafe_headers]}")
 
         return safe_headers
 

@@ -16,8 +16,9 @@ from app.routers import chat, browser
 logger.remove()  # Remove default handler
 logger.add(
     sys.stdout,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-    level="INFO" if not config.debug else "DEBUG"
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> | <level>{message}</level>",
+    level="DEBUG" if config.debug else "INFO",
+    colorize=True
 )
 
 

@@ -11,11 +11,19 @@ from dotenv import load_dotenv
 # Load .env file with override=True to prioritize .env over system variables
 # Find .env in the backend directory (parent of app/)
 env_path = Path(__file__).parent.parent / '.env'
+
+# Early logging setup for config loading (before loguru is configured)
+from loguru import logger
 import sys
-print(f"[Config] Loading .env from: {env_path}", file=sys.stderr)
-print(f"[Config] .env file exists: {env_path.exists()}", file=sys.stderr)
+
+# Configure basic logger for config module
+logger.remove()
+logger.add(sys.stdout, format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>", level="DEBUG")
+
+logger.debug(f"[Config] Loading .env from: {env_path}")
+logger.debug(f"[Config] .env file exists: {env_path.exists()}")
 load_dotenv(dotenv_path=env_path, override=True)
-print(f"[Config] After load_dotenv, ENV from os.getenv: {os.getenv('ENV', 'NOT SET')}", file=sys.stderr)
+logger.debug(f"[Config] After load_dotenv, ENV from os.getenv: {os.getenv('ENV', 'NOT SET')}")
 
 
 class Config:
@@ -29,10 +37,9 @@ class Config:
         self.is_rbc = self.env == 'rbc'
 
         # Debug logging for environment detection
-        import sys
-        print(f"[Config] Raw ENV value: '{raw_env}'", file=sys.stderr)
-        print(f"[Config] Processed ENV: '{self.env}'", file=sys.stderr)
-        print(f"[Config] is_local: {self.is_local}, is_rbc: {self.is_rbc}", file=sys.stderr)
+        logger.debug(f"[Config] Raw ENV value: '{raw_env}'")
+        logger.debug(f"[Config] Processed ENV: '{self.env}'")
+        logger.debug(f"[Config] is_local: {self.is_local}, is_rbc: {self.is_rbc}")
 
         # Server settings
         self.host = os.getenv('HOST', '0.0.0.0')

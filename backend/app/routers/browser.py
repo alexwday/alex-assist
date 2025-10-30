@@ -43,13 +43,25 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
         if error:
             raise HTTPException(status_code=400, detail=error)
 
+        # Merge safe headers from response with our explicit overrides
+        response_headers = {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "public, max-age=3600",
+        }
+
+        # Add safe headers from the original response if available
+        if headers:
+            # Only include headers that won't conflict with our explicit ones
+            for key, value in headers.items():
+                if key.lower() not in {"content-type", "cache-control"}:
+                    response_headers[key] = value
+
+        logger.debug(f"[PROXY] Response headers being sent: {list(response_headers.keys())}")
+
         # Return HTML with safe headers
         return HTMLResponse(
             content=html_content,
-            headers={
-                "Content-Type": "text/html; charset=utf-8",
-                "Cache-Control": "public, max-age=3600",
-            }
+            headers=response_headers
         )
 
     except HTTPException:
