@@ -24,10 +24,10 @@ fastapi-cors==0.0.6
 loguru==0.7.2
 
 # Web scraping and search
-crawl4ai==0.3.74
+crawl4ai>=0.4.0
 duckduckgo-search==4.1.1
 beautifulsoup4==4.12.2
-lxml~=5.3.0
+lxml>=5.0.0
 
 # Optional: RBC Security (only available in RBC environment)
 # rbc_security  # Uncomment when deploying to RBC environment
