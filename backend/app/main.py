@@ -7,12 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 import sys
+import logging
 
 from app.config import config
 from app.routers import chat, browser
 
 
-# Configure logger
+# Configure loguru logger
 logger.remove()  # Remove default handler
 logger.add(
     sys.stdout,
@@ -20,6 +21,34 @@ logger.add(
     level="DEBUG" if config.debug else "INFO",
     colorize=True
 )
+
+
+# Intercept standard logging to loguru
+class InterceptHandler(logging.Handler):
+    """Intercept standard library logging and redirect to loguru."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        # Get corresponding Loguru level if it exists
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        # Find caller from where originated the logged message
+        frame, depth = sys._getframe(6), 6
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+
+
+# Setup intercept handler for uvicorn loggers
+logging.getLogger("uvicorn").handlers = [InterceptHandler()]
+logging.getLogger("uvicorn.access").handlers = [InterceptHandler()]
+logging.getLogger("uvicorn.error").handlers = [InterceptHandler()]
+
+logger.info(f"🔧 Logger configured - Level: {'DEBUG' if config.debug else 'INFO'}")
 
 
 # Create FastAPI app
