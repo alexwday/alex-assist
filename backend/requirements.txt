@@ -28,6 +28,7 @@ crawl4ai>=0.4.0
 duckduckgo-search==4.1.1
 beautifulsoup4==4.12.2
 lxml>=5.0.0
+chardet>=5.0.0  # Character encoding detection
 
 # Optional: RBC Security (only available in RBC environment)
 # rbc_security  # Uncomment when deploying to RBC environment
