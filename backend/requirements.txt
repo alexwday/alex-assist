@@ -13,9 +13,9 @@ httpx==0.25.2
 # Environment variables
 python-dotenv==1.0.0
 
-# Database
-sqlalchemy>=2.0.35  # Updated for better wheel compatibility
-aiosqlite>=0.20.0
+# Database (commented out - not used yet, causes build issues without C++ compiler)
+# sqlalchemy>=2.0.35
+# aiosqlite>=0.20.0
 
 # CORS
 fastapi-cors==0.0.6
