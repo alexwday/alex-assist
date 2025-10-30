@@ -69,13 +69,40 @@ class BrowserProxyService:
                 if "text/html" not in content_type:
                     return None, f"Non-HTML content type: {content_type}", None
 
-                # Ensure proper encoding detection
-                # httpx handles decompression automatically, but we need to set encoding
-                if response.encoding == 'ascii':
-                    # Fallback to utf-8 if httpx detected ascii (often wrong)
-                    response.encoding = 'utf-8'
+                # Better encoding detection
+                # 1. Try to get charset from Content-Type header
+                encoding = None
+                if 'charset=' in content_type.lower():
+                    try:
+                        encoding = content_type.lower().split('charset=')[-1].split(';')[0].strip()
+                    except:
+                        pass
 
-                html_content = response.text
+                # 2. If no charset in header, try to detect from HTML
+                if not encoding:
+                    # Use response.content (bytes) and decode with detected encoding
+                    import re
+                    # Look for charset in first 1024 bytes
+                    head_bytes = response.content[:1024]
+                    charset_match = re.search(rb'charset=["\']?([^"\'>\s]+)', head_bytes, re.IGNORECASE)
+                    if charset_match:
+                        try:
+                            encoding = charset_match.group(1).decode('ascii')
+                        except:
+                            pass
+
+                # 3. Fallback to utf-8 if nothing detected
+                if not encoding or encoding.lower() == 'ascii':
+                    encoding = 'utf-8'
+
+                logger.info(f"Detected encoding: {encoding} for {url}")
+
+                # Decode with detected encoding
+                try:
+                    html_content = response.content.decode(encoding, errors='replace')
+                except:
+                    # Last resort: force utf-8 with error replacement
+                    html_content = response.content.decode('utf-8', errors='replace')
 
                 # Rewrite URLs in the HTML to route through proxy
                 rewritten_html = self._rewrite_urls(html_content, url)
