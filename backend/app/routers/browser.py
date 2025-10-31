@@ -49,17 +49,14 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
             "Cache-Control": "public, max-age=3600",
         }
 
-        # Explicitly encode to UTF-8 bytes to ensure proper encoding
-        # This prevents any encoding issues between string and bytes conversion
-        content_bytes = html_content.encode('utf-8')
-
         logger.debug(f"[PROXY] Response headers being sent: {response_headers}")
-        logger.debug(f"[PROXY] Content length being sent: {len(content_bytes)} bytes")
+        logger.debug(f"[PROXY] Content length being sent: {len(html_content)} characters")
         logger.debug(f"[PROXY] First 100 chars: {html_content[:100]}")
 
-        # Return HTML with explicit headers - use media_type to be extra sure
+        # Pass string directly to HTMLResponse - let FastAPI handle encoding
+        # Passing bytes was causing double-encoding issues
         return HTMLResponse(
-            content=content_bytes,
+            content=html_content,
             headers=response_headers,
             media_type="text/html; charset=utf-8"
         )
