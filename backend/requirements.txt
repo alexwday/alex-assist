@@ -9,6 +9,7 @@ openai>=1.50.0
 # HTTP requests
 requests==2.31.0
 httpx==0.25.2
+brotli>=1.1.0  # For decompressing Brotli-encoded responses
 
 # Environment variables
 python-dotenv==1.0.0
