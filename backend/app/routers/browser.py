@@ -43,18 +43,15 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
 
         # CRITICAL: Only send these specific headers - NO encoding headers
         # Do NOT send Content-Encoding header - its absence indicates no compression
-        # Note: "identity" is NOT a valid Content-Encoding value
         response_headers = {
-            "Content-Type": "text/html; charset=utf-8",
             "Cache-Control": "public, max-age=3600",
         }
 
-        logger.debug(f"[PROXY] Response headers being sent: {response_headers}")
         logger.debug(f"[PROXY] Content length being sent: {len(html_content)} characters")
         logger.debug(f"[PROXY] First 100 chars: {html_content[:100]}")
 
         # Pass string directly to HTMLResponse - let FastAPI handle encoding
-        # Passing bytes was causing double-encoding issues
+        # Use media_type parameter to set Content-Type (don't duplicate in headers dict)
         return HTMLResponse(
             content=html_content,
             headers=response_headers,
@@ -213,3 +210,36 @@ async def debug_encoding(url: str = Query(..., description="URL to test encoding
             }
     except Exception as e:
         return {"error": str(e)}
+
+# Test endpoint - serves a simple UTF-8 HTML page
+@router.get("/debug/test-utf8")
+async def test_utf8():
+    """Test endpoint that returns a simple UTF-8 HTML page with special characters"""
+    test_html = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UTF-8 Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 40px; }
+        .test-char { font-size: 24px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>UTF-8 Encoding Test</h1>
+    <p>If you see readable characters below, UTF-8 is working correctly:</p>
+    <div class="test-char">English: Hello World</div>
+    <div class="test-char">French: Café, résumé, naïve</div>
+    <div class="test-char">German: Über, Größe, Bräu</div>
+    <div class="test-char">Spanish: ¿Cómo estás? ¡Olé!</div>
+    <div class="test-char">Symbols: © ® ™ € £ ¥</div>
+    <div class="test-char">Chinese: 你好世界 (Hello World)</div>
+    <div class="test-char">Japanese: こんにちは世界</div>
+    <div class="test-char">Emoji: 🌍 🚀 ✅ ❌ 🎉</div>
+</body>
+</html>"""
+
+    return HTMLResponse(
+        content=test_html,
+        media_type="text/html; charset=utf-8"
+    )

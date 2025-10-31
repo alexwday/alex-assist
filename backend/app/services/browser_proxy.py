@@ -255,10 +255,26 @@ class BrowserProxyService:
             for tag in soup.find_all('form', action=True):
                 tag['action'] = urljoin(base_url, tag['action'])
 
-            # Add base tag to help with any remaining relative URLs
-            base_tag = soup.new_tag('base', href=base_url)
+            # Ensure proper charset meta tag exists in head
             if soup.head:
-                soup.head.insert(0, base_tag)
+                # Check if charset meta tag exists
+                has_charset = False
+                for meta in soup.head.find_all('meta'):
+                    if meta.get('charset') or (meta.get('http-equiv', '').lower() == 'content-type'):
+                        has_charset = True
+                        break
+
+                # If no charset tag, add one at the very beginning
+                if not has_charset:
+                    charset_meta = soup.new_tag('meta', charset='utf-8')
+                    soup.head.insert(0, charset_meta)
+                    logger.debug("[PROXY] Added missing charset meta tag")
+
+                # Add base tag after charset
+                base_tag = soup.new_tag('base', href=base_url)
+                # Insert after charset meta if we just added it, otherwise at beginning
+                insert_index = 1 if not has_charset else 0
+                soup.head.insert(insert_index, base_tag)
 
             # Return as string - str(soup) is more reliable than prettify()
             # for encoding preservation
