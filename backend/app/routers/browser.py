@@ -3,7 +3,7 @@ Browser API routes for proxy, scraping, and search functionality
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, List
 from app.services.browser_proxy import browser_proxy_service
@@ -49,14 +49,23 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
 
         logger.debug(f"[PROXY] Content length being sent: {len(html_content)} characters")
         logger.debug(f"[PROXY] First 100 chars: {html_content[:100]}")
+        logger.debug(f"[PROXY] Content type: {type(html_content)}")
+
+        # Check if charset meta tag exists
+        has_meta_charset = '<meta charset=' in html_content[:1000].lower() or 'charset="utf-8"' in html_content[:1000].lower()
+        logger.debug(f"[PROXY] Has charset meta tag in HTML: {has_meta_charset}")
 
         # Pass string directly to HTMLResponse - let FastAPI handle encoding
         # Use media_type parameter to set Content-Type (don't duplicate in headers dict)
-        return HTMLResponse(
+        response = HTMLResponse(
             content=html_content,
             headers=response_headers,
             media_type="text/html; charset=utf-8"
         )
+
+        logger.debug(f"[PROXY] Response headers after creation: {dict(response.headers)}")
+
+        return response
 
     except HTTPException:
         raise
@@ -243,3 +252,39 @@ async def test_utf8():
         content=test_html,
         media_type="text/html; charset=utf-8"
     )
+
+# Alternative proxy endpoint using Response with explicit byte encoding
+@router.get("/proxy-v2")
+async def proxy_page_v2(url: str = Query(..., description="The URL to proxy")):
+    """
+    Alternative proxy endpoint that explicitly handles encoding as bytes
+    Use this to test if HTMLResponse is causing encoding issues
+    """
+    try:
+        html_content, error, headers = await browser_proxy_service.fetch_page(url)
+
+        if error:
+            raise HTTPException(status_code=400, detail=error)
+
+        logger.debug(f"[PROXY-V2] Content length: {len(html_content)} characters")
+
+        # Explicitly encode to UTF-8 bytes
+        content_bytes = html_content.encode('utf-8')
+
+        logger.debug(f"[PROXY-V2] Encoded to {len(content_bytes)} bytes")
+        logger.debug(f"[PROXY-V2] First 50 bytes hex: {content_bytes[:50].hex()}")
+
+        # Use Response directly with bytes and explicit headers
+        return Response(
+            content=content_bytes,
+            media_type="text/html; charset=utf-8",
+            headers={
+                "Cache-Control": "public, max-age=3600",
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in proxy-v2 endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
