@@ -12,6 +12,7 @@ interface BrowserFrameProps {
   onLoadStart: () => void;
   onLoadEnd: () => void;
   onError?: (error: string) => void;
+  onNavigate?: (url: string) => void;
 }
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -22,10 +23,26 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
   onLoadStart,
   onLoadEnd,
   onError,
+  onNavigate,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Listen for navigation messages from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Security check - only accept messages from our iframe
+      if (event.data?.type === 'IFRAME_NAVIGATE' && onNavigate) {
+        const targetUrl = event.data.url;
+        console.log('[BrowserFrame] Navigation requested:', targetUrl);
+        onNavigate(targetUrl);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onNavigate]);
 
   // Fetch HTML content when URL changes
   useEffect(() => {
@@ -64,7 +81,34 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
           firstChars: html.substring(0, 100),
         });
 
-        setHtmlContent(html);
+        // Inject navigation script to intercept link clicks
+        const navigationScript = `
+          <script>
+            (function() {
+              console.log('[IframeScript] Navigation handler initialized');
+
+              // Intercept all link clicks
+              document.addEventListener('click', function(e) {
+                const target = e.target.closest('a');
+                if (target && target.href) {
+                  e.preventDefault();
+                  console.log('[IframeScript] Link clicked:', target.href);
+
+                  // Send navigation request to parent
+                  window.parent.postMessage({
+                    type: 'IFRAME_NAVIGATE',
+                    url: target.href
+                  }, '*');
+                }
+              }, true);
+            })();
+          </script>
+        `;
+
+        // Inject script before closing body tag
+        const htmlWithScript = html.replace(/<\/body>/i, navigationScript + '</body>');
+
+        setHtmlContent(htmlWithScript);
         // onLoadEnd will be called by iframe onLoad event
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to load page';

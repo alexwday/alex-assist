@@ -98,6 +98,7 @@ export const BrowserWidget: React.FC<BrowserWidgetProps> = ({
             isLoading={state.isLoading}
             onLoadStart={handleLoadStart}
             onLoadEnd={handleLoadEnd}
+            onNavigate={navigate}
           />
         </div>
       </div>

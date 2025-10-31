@@ -90,8 +90,6 @@ class BrowserProxyService:
 
                 # Better encoding detection with multiple fallbacks
                 import re
-                import gzip
-                import zlib
 
                 # Try to import chardet, but don't fail if not available
                 try:
@@ -101,52 +99,12 @@ class BrowserProxyService:
                     has_chardet = False
                     logger.warning("chardet not installed, encoding detection may be less accurate")
 
-                # Explicit decompression handling (in case proxy doesn't decompress)
-                raw_content = response.content
-                content_encoding = response.headers.get("content-encoding", "").lower()
+                # httpx automatically decompresses gzip, deflate, and brotli
+                # We don't need to manually decompress - response.content is already decompressed
+                response_content = response.content
 
-                logger.debug(f"[PROXY DEBUG] Content-Encoding header: '{content_encoding}'")
-
-                # Check if content is actually compressed (magic bytes)
-                is_gzip = raw_content[:2] == b'\x1f\x8b'
-                is_deflate = raw_content[:2] == b'\x78\x9c' or raw_content[:2] == b'\x78\x01'
-
-                logger.debug(f"[PROXY DEBUG] Appears to be gzip: {is_gzip}")
-                logger.debug(f"[PROXY DEBUG] Appears to be deflate: {is_deflate}")
-
-                # Manually decompress if needed
-                decompressed_content = raw_content
-                if is_gzip:
-                    try:
-                        logger.info("Content is gzip compressed, decompressing manually...")
-                        decompressed_content = gzip.decompress(raw_content)
-                        logger.info(f"Successfully decompressed gzip content: {len(raw_content)} -> {len(decompressed_content)} bytes")
-                    except Exception as e:
-                        logger.error(f"Failed to decompress gzip content: {e}")
-                        # Try to continue with raw content
-                elif is_deflate or content_encoding in ['deflate', 'compress']:
-                    try:
-                        logger.info("Content is deflate compressed, decompressing manually...")
-                        decompressed_content = zlib.decompress(raw_content, -zlib.MAX_WBITS)
-                        logger.info(f"Successfully decompressed deflate content: {len(raw_content)} -> {len(decompressed_content)} bytes")
-                    except Exception as e:
-                        logger.error(f"Failed to decompress deflate content: {e}")
-                        # Try to continue with raw content
-                elif content_encoding == 'br':
-                    try:
-                        import brotli
-                        logger.info("Content is brotli compressed, decompressing manually...")
-                        decompressed_content = brotli.decompress(raw_content)
-                        logger.info(f"Successfully decompressed brotli content: {len(raw_content)} -> {len(decompressed_content)} bytes")
-                    except ImportError:
-                        logger.warning("brotli not installed, cannot decompress br encoding")
-                    except Exception as e:
-                        logger.error(f"Failed to decompress brotli content: {e}")
-
-                # Use decompressed content for further processing
-                response_content = decompressed_content
-                logger.debug(f"[PROXY DEBUG] Final content length: {len(response_content)} bytes")
-                logger.debug(f"[PROXY DEBUG] First 50 bytes after decompression (hex): {response_content[:50].hex()}")
+                logger.debug(f"[PROXY DEBUG] Content length: {len(response_content)} bytes")
+                logger.debug(f"[PROXY DEBUG] First 50 bytes (hex): {response_content[:50].hex()}")
 
                 # 1. Try to get charset from Content-Type header
                 encoding = None
