@@ -81,7 +81,7 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
           firstChars: html.substring(0, 100),
         });
 
-        // Inject navigation script to intercept link clicks
+        // Inject navigation script to intercept link clicks and form submissions
         const navigationScript = `
           <script>
             (function() {
@@ -101,6 +101,82 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
                   }, '*');
                 }
               }, true);
+
+              // Intercept form submissions
+              document.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = e.target;
+                console.log('[IframeScript] Form submitted');
+
+                // Get form action URL
+                let actionUrl = form.action || window.location.href;
+                const method = (form.method || 'GET').toUpperCase();
+
+                console.log('[IframeScript] Form action:', actionUrl, 'method:', method);
+
+                // Only handle GET forms (like search)
+                if (method === 'GET') {
+                  // Build query string from form data
+                  const formData = new FormData(form);
+                  const params = new URLSearchParams();
+
+                  for (const [key, value] of formData.entries()) {
+                    if (value) {
+                      params.append(key, value);
+                    }
+                  }
+
+                  // Construct full URL
+                  const url = new URL(actionUrl);
+                  // Replace query params with form params
+                  url.search = params.toString();
+                  const finalUrl = url.toString();
+
+                  console.log('[IframeScript] Navigating to:', finalUrl);
+
+                  // Send navigation request to parent
+                  window.parent.postMessage({
+                    type: 'IFRAME_NAVIGATE',
+                    url: finalUrl
+                  }, '*');
+                } else {
+                  console.warn('[IframeScript] POST forms not supported, ignoring');
+                }
+              }, true);
+
+              // Intercept programmatic navigation (window.location changes)
+              const originalLocationSetter = Object.getOwnPropertyDescriptor(window.Location.prototype, 'href').set;
+              Object.defineProperty(window.location, 'href', {
+                set: function(newUrl) {
+                  console.log('[IframeScript] window.location.href set to:', newUrl);
+
+                  // Send navigation request to parent
+                  window.parent.postMessage({
+                    type: 'IFRAME_NAVIGATE',
+                    url: newUrl
+                  }, '*');
+
+                  // Don't actually change location
+                  return newUrl;
+                }
+              });
+
+              // Intercept window.open() to open in same frame
+              const originalOpen = window.open;
+              window.open = function(url, target, features) {
+                console.log('[IframeScript] window.open called:', url);
+
+                if (url) {
+                  // Send navigation request to parent instead
+                  window.parent.postMessage({
+                    type: 'IFRAME_NAVIGATE',
+                    url: url
+                  }, '*');
+                }
+
+                // Return a fake window object
+                return window;
+              };
             })();
           </script>
         `;
