@@ -49,13 +49,17 @@ async def proxy_page(url: str = Query(..., description="The URL to proxy")):
             "Cache-Control": "public, max-age=3600",
         }
 
+        # Explicitly encode to UTF-8 bytes to ensure proper encoding
+        # This prevents any encoding issues between string and bytes conversion
+        content_bytes = html_content.encode('utf-8')
+
         logger.debug(f"[PROXY] Response headers being sent: {response_headers}")
-        logger.debug(f"[PROXY] Content length being sent: {len(html_content)} chars")
+        logger.debug(f"[PROXY] Content length being sent: {len(content_bytes)} bytes")
         logger.debug(f"[PROXY] First 100 chars: {html_content[:100]}")
 
         # Return HTML with explicit headers - use media_type to be extra sure
         return HTMLResponse(
-            content=html_content,
+            content=content_bytes,
             headers=response_headers,
             media_type="text/html; charset=utf-8"
         )
