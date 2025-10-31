@@ -1,6 +1,6 @@
 /**
  * Browser frame component - iframe container for displaying web pages
- * Uses client-side fetch + srcdoc to bypass HTTP encoding issues
+ * Uses client-side fetch + Blob URLs to fix both encoding AND navigation
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -26,28 +26,19 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
   onNavigate,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [blobUrl, setBlobUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const previousBlobUrl = useRef<string>('');
 
-  // Listen for navigation messages from iframe
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Security check - only accept messages from our iframe
-      if (event.data?.type === 'IFRAME_NAVIGATE' && onNavigate) {
-        const targetUrl = event.data.url;
-        console.log('[BrowserFrame] Navigation requested:', targetUrl);
-        onNavigate(targetUrl);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [onNavigate]);
-
-  // Fetch HTML content when URL changes
+  // Fetch HTML content and create Blob URL when URL changes
   useEffect(() => {
     if (!url) {
-      setHtmlContent('');
+      // Clean up previous blob URL
+      if (previousBlobUrl.current) {
+        URL.revokeObjectURL(previousBlobUrl.current);
+        previousBlobUrl.current = '';
+      }
+      setBlobUrl('');
       setError(null);
       return;
     }
@@ -55,7 +46,11 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
     const fetchHtml = async () => {
       onLoadStart();
       setError(null);
-      setHtmlContent(''); // Clear previous content
+
+      // Clean up previous blob URL
+      if (previousBlobUrl.current) {
+        URL.revokeObjectURL(previousBlobUrl.current);
+      }
 
       try {
         console.log('[BrowserFrame] Fetching URL:', url);
@@ -73,7 +68,6 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
         });
 
         // Get HTML as text - browser's fetch API handles encoding automatically
-        // based on Content-Type header
         const html = await response.text();
 
         console.log('[BrowserFrame] Received HTML:', {
@@ -81,110 +75,17 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
           firstChars: html.substring(0, 100),
         });
 
-        // Inject navigation script to intercept link clicks and form submissions
-        const navigationScript = `
-          <script>
-            (function() {
-              console.log('[IframeScript] Navigation handler initialized');
+        // Create Blob with explicit charset
+        const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
 
-              // Intercept all link clicks
-              document.addEventListener('click', function(e) {
-                const target = e.target.closest('a');
-                if (target && target.href) {
-                  e.preventDefault();
-                  console.log('[IframeScript] Link clicked:', target.href);
+        // Create object URL from Blob
+        const objectUrl = URL.createObjectURL(blob);
 
-                  // Send navigation request to parent
-                  window.parent.postMessage({
-                    type: 'IFRAME_NAVIGATE',
-                    url: target.href
-                  }, '*');
-                }
-              }, true);
+        console.log('[BrowserFrame] Created Blob URL:', objectUrl);
 
-              // Intercept form submissions
-              document.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const form = e.target;
-                console.log('[IframeScript] Form submitted');
+        previousBlobUrl.current = objectUrl;
+        setBlobUrl(objectUrl);
 
-                // Get form action URL
-                let actionUrl = form.action || window.location.href;
-                const method = (form.method || 'GET').toUpperCase();
-
-                console.log('[IframeScript] Form action:', actionUrl, 'method:', method);
-
-                // Only handle GET forms (like search)
-                if (method === 'GET') {
-                  // Build query string from form data
-                  const formData = new FormData(form);
-                  const params = new URLSearchParams();
-
-                  for (const [key, value] of formData.entries()) {
-                    if (value) {
-                      params.append(key, value);
-                    }
-                  }
-
-                  // Construct full URL
-                  const url = new URL(actionUrl);
-                  // Replace query params with form params
-                  url.search = params.toString();
-                  const finalUrl = url.toString();
-
-                  console.log('[IframeScript] Navigating to:', finalUrl);
-
-                  // Send navigation request to parent
-                  window.parent.postMessage({
-                    type: 'IFRAME_NAVIGATE',
-                    url: finalUrl
-                  }, '*');
-                } else {
-                  console.warn('[IframeScript] POST forms not supported, ignoring');
-                }
-              }, true);
-
-              // Intercept programmatic navigation (window.location changes)
-              const originalLocationSetter = Object.getOwnPropertyDescriptor(window.Location.prototype, 'href').set;
-              Object.defineProperty(window.location, 'href', {
-                set: function(newUrl) {
-                  console.log('[IframeScript] window.location.href set to:', newUrl);
-
-                  // Send navigation request to parent
-                  window.parent.postMessage({
-                    type: 'IFRAME_NAVIGATE',
-                    url: newUrl
-                  }, '*');
-
-                  // Don't actually change location
-                  return newUrl;
-                }
-              });
-
-              // Intercept window.open() to open in same frame
-              const originalOpen = window.open;
-              window.open = function(url, target, features) {
-                console.log('[IframeScript] window.open called:', url);
-
-                if (url) {
-                  // Send navigation request to parent instead
-                  window.parent.postMessage({
-                    type: 'IFRAME_NAVIGATE',
-                    url: url
-                  }, '*');
-                }
-
-                // Return a fake window object
-                return window;
-              };
-            })();
-          </script>
-        `;
-
-        // Inject script before closing body tag
-        const htmlWithScript = html.replace(/<\/body>/i, navigationScript + '</body>');
-
-        setHtmlContent(htmlWithScript);
         // onLoadEnd will be called by iframe onLoad event
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to load page';
@@ -198,6 +99,13 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
     };
 
     fetchHtml();
+
+    // Cleanup on unmount
+    return () => {
+      if (previousBlobUrl.current) {
+        URL.revokeObjectURL(previousBlobUrl.current);
+      }
+    };
   }, [url, onLoadStart, onLoadEnd, onError]);
 
   const handleIframeLoad = () => {
@@ -246,11 +154,11 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
         </div>
       )}
 
-      {/* Iframe with srcdoc - bypasses HTTP encoding issues */}
-      {htmlContent && !error && (
+      {/* Iframe with Blob URL - has proper origin, navigation works naturally */}
+      {blobUrl && !error && (
         <iframe
           ref={iframeRef}
-          srcdoc={htmlContent}
+          src={blobUrl}
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           className="w-full h-full border-0"
@@ -260,7 +168,7 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
       )}
 
       {/* Placeholder when no URL */}
-      {!url && !htmlContent && (
+      {!url && !blobUrl && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
           <div className="text-center text-gray-400 dark:text-gray-600">
             <p className="text-sm">Enter a URL to browse</p>
