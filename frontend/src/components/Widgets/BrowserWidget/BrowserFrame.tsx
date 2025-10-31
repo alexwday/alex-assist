@@ -1,8 +1,9 @@
 /**
  * Browser frame component - iframe container for displaying web pages
+ * Uses client-side fetch + srcdoc to bypass HTTP encoding issues
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 interface BrowserFrameProps {
@@ -23,48 +24,71 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
   onError,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
-  // Construct proxy URL
-  const proxyUrl = url ? `${API_BASE_URL}/api/browser/proxy?url=${encodeURIComponent(url)}` : '';
-
+  // Fetch HTML content when URL changes
   useEffect(() => {
-    if (url) {
+    if (!url) {
+      setHtmlContent('');
       setError(null);
-      onLoadStart();
-
-      // Set a timeout to stop loading spinner if iframe never fires onLoad
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-      loadingTimeoutRef.current = setTimeout(() => {
-        onLoadEnd();
-      }, 10000); // 10 second timeout
+      return;
     }
 
-    return () => {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
+    const fetchHtml = async () => {
+      onLoadStart();
+      setError(null);
+      setHtmlContent(''); // Clear previous content
+
+      try {
+        console.log('[BrowserFrame] Fetching URL:', url);
+        const proxyUrl = `${API_BASE_URL}/api/browser/proxy?url=${encodeURIComponent(url)}`;
+
+        const response = await fetch(proxyUrl);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        console.log('[BrowserFrame] Response headers:', {
+          contentType: response.headers.get('content-type'),
+          contentLength: response.headers.get('content-length'),
+        });
+
+        // Get HTML as text - browser's fetch API handles encoding automatically
+        // based on Content-Type header
+        const html = await response.text();
+
+        console.log('[BrowserFrame] Received HTML:', {
+          length: html.length,
+          firstChars: html.substring(0, 100),
+        });
+
+        setHtmlContent(html);
+        // onLoadEnd will be called by iframe onLoad event
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load page';
+        console.error('[BrowserFrame] Fetch error:', errorMsg);
+        setError(errorMsg);
+        onLoadEnd();
+        if (onError) {
+          onError(errorMsg);
+        }
       }
     };
-  }, [url, onLoadStart, onLoadEnd]);
 
-  const handleLoad = () => {
-    // Clear the timeout since the page loaded successfully
-    if (loadingTimeoutRef.current) {
-      clearTimeout(loadingTimeoutRef.current);
-    }
+    fetchHtml();
+  }, [url, onLoadStart, onLoadEnd, onError]);
+
+  const handleIframeLoad = () => {
+    console.log('[BrowserFrame] Iframe loaded successfully');
     onLoadEnd();
     setError(null);
   };
 
-  const handleError = () => {
-    // Clear the timeout since we've hit an error
-    if (loadingTimeoutRef.current) {
-      clearTimeout(loadingTimeoutRef.current);
-    }
-    const errorMessage = 'Failed to load page';
+  const handleIframeError = () => {
+    console.error('[BrowserFrame] Iframe error');
+    const errorMessage = 'Failed to render page';
     setError(errorMessage);
     onLoadEnd();
     if (onError) {
@@ -102,21 +126,21 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({
         </div>
       )}
 
-      {/* Iframe */}
-      {proxyUrl && (
+      {/* Iframe with srcdoc - bypasses HTTP encoding issues */}
+      {htmlContent && !error && (
         <iframe
           ref={iframeRef}
-          src={proxyUrl}
-          onLoad={handleLoad}
-          onError={handleError}
+          srcdoc={htmlContent}
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
           className="w-full h-full border-0"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
           title="Browser content"
         />
       )}
 
       {/* Placeholder when no URL */}
-      {!proxyUrl && (
+      {!url && !htmlContent && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
           <div className="text-center text-gray-400 dark:text-gray-600">
             <p className="text-sm">Enter a URL to browse</p>
