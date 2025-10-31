@@ -260,9 +260,9 @@ class BrowserProxyService:
             if soup.head:
                 soup.head.insert(0, base_tag)
 
-            # Use prettify with UTF-8 encoding to ensure proper character handling
-            # formatter=None preserves the original formatting
-            return soup.prettify(formatter="html")
+            # Return as string - str(soup) is more reliable than prettify()
+            # for encoding preservation
+            return str(soup)
         except Exception as e:
             logger.warning(f"Error rewriting URLs: {str(e)}. Returning original HTML.")
             return html
